@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  db:
+    image: postgres
+    restart: always
+    env_file: ./.env
+
+  app:
+    build: bot
+    restart: always
+    env_file: ./.env
+    depends_on:
+      - db
