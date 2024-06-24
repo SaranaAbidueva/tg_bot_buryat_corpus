@@ -29,17 +29,15 @@ check_translation = 'Проверить перевод'
 correct_pls_ru = 'Введите исправленное предложение на русском'
 correct_pls_bua = 'Введите исправленное предложение на бурятском'
 
-try:
-    conn = psycopg2.connect(
-        dbname=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-        host=POSTGRES_HOST)
-    conn.autocommit = True
-    print('Подключено')
-    cursor = conn.cursor()
-except psycopg2.OperationalError as e:
-    print('Can`t establish connection to database')
+
+conn = psycopg2.connect(
+    dbname=POSTGRES_DB,
+    user=POSTGRES_USER,
+    password=POSTGRES_PASSWORD,
+    host=POSTGRES_HOST)
+conn.autocommit = True
+print('Подключено')
+cursor = conn.cursor()
 
 bot = TeleBot(TELEBOT_TOKEN)
 bot.set_my_commands([
