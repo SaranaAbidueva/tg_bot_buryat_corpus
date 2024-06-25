@@ -1,7 +1,7 @@
 def get_sentence(lang: str, user_id: int):
     if lang == 'ru':
         return '''
-                select ru, sentence_id, corpus from corpus.parallel_corpus
+                select ru, sentence_id, corpus, task from corpus.parallel_corpus
                 where ((ru is not null and bua is null) 
                     or (ru is not null and bua is not null and check_1 is False and check_2 is False))
                     and incorrect_flg is False
@@ -10,7 +10,7 @@ def get_sentence(lang: str, user_id: int):
             '''
     elif lang == 'bua':
         return '''
-                select bua, sentence_id, corpus from corpus.parallel_corpus
+                select bua, sentence_id, corpus, task from corpus.parallel_corpus
                 where ((bua is not null and ru is null) 
                     or (bua is not null and ru is not null and check_1 is False and check_2 is False))
                     and incorrect_flg is False
@@ -24,7 +24,8 @@ def get_sentence(lang: str, user_id: int):
                         bua, 
                         ru,
                         corpus,
-                        sentence_id 
+                        sentence_id,
+                        task
                     from corpus.parallel_corpus
                     where bua is not null 
                         and ru is not null
@@ -41,7 +42,7 @@ def get_sentence(lang: str, user_id: int):
             '''
 
 
-def update_translation(sentence: str, sentence_id: int, user_id: int, lang: str, boolean: bool=True) -> str:
+def update_translation(sentence: str, sentence_id: int, user_id: int, lang: str, boolean: bool = True) -> str:
     if lang == 'ru':
         return f'''
                 update corpus.parallel_corpus
@@ -52,7 +53,8 @@ def update_translation(sentence: str, sentence_id: int, user_id: int, lang: str,
                     user_check_1 = null,
                     user_check_2 = null,
                     incorrect_flg = False,
-                    processed_dttm = now()
+                    processed_dttm = now(),
+                    task = 'ru_to_bua'
                 where sentence_id = {sentence_id} 
         '''
     elif lang == 'bua':
@@ -65,7 +67,8 @@ def update_translation(sentence: str, sentence_id: int, user_id: int, lang: str,
                         user_check_1 = null,
                         user_check_2 = null,
                         incorrect_flg = False,
-                        processed_dttm = now()
+                        processed_dttm = now(),
+                        task = 'bua_to_ru'
                     where sentence_id = {sentence_id} 
             '''
     elif lang == 'both':
@@ -91,15 +94,16 @@ def update_translation(sentence: str, sentence_id: int, user_id: int, lang: str,
             '''
 
 
-def insert_two_sentences(sentence_ru: str, sentence_bua: str, which_corpus: str, user_id: int) -> str:
+def insert_two_sentences(sentence_ru: str, sentence_bua: str, which_corpus: str, user_id: int, task: str) -> str:
     return f'''
-        insert into corpus.parallel_corpus (bua, ru, corpus, user_sentence, processed_dttm)
+        insert into corpus.parallel_corpus (bua, ru, corpus, user_sentence, processed_dttm, task)
             values (
                 '{sentence_bua}',
                 '{sentence_ru}',
                 '{which_corpus}',
                 {user_id},
-                now()
+                now(),
+                '{task}'
             )
             '''
 
@@ -123,11 +127,11 @@ def get_count_all_sentences() -> str:
         from (
             select count(distinct sentence_id)
             from corpus.parallel_corpus
-            where corpus = 'монокорпус бурятского' and ru is not null
+            where task = 'bua_to_ru' and ru is not null
             union all 
             select count(distinct sentence_id)
             from corpus.parallel_corpus
-            where corpus = 'FLORES' and bua is not null
+            where task = 'ru_to_bua' and bua is not null
             ) t
     '''
 
@@ -144,7 +148,7 @@ def get_count_bua_sentences() -> str:
     return '''
         select count(distinct sentence_id)
         from corpus.parallel_corpus
-        where corpus = 'FLORES' and bua is not null
+        where task = 'ru_to_bua' and bua is not null
     '''
 
 
@@ -152,7 +156,7 @@ def get_count_ru_sentences() -> str:
     return '''
         select count(distinct sentence_id)
         from corpus.parallel_corpus
-        where corpus = 'монокорпус бурятского' and ru is not null
+        where task = 'bua_to_ru' and ru is not null
     '''
 
 

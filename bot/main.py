@@ -15,9 +15,9 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST")
 TELEBOT_TOKEN = os.getenv("TELEBOT_TOKEN")
 
-another_sentence = 'Не могу перевести. Получить другое предложение'  # оршуулжа шадахагүй. ондоо мэдуулэл
+another_sentence = 'Отправьте другое предложение'  # оршуулжа шадахагүй. ондоо мэдуулэл
 take_task = 'Беру'  # Хэхэб  Оршуулга хэдэгб
-incorrect_sentence = 'Некорректное предложение'  # Буруу дурадхалга
+incorrect_sentence = 'Исправить опечатки и перевести'  # Буруу дурадхалга
 translate_pls = 'Введите перевод'  # Оршуулагта
 right = 'Правильно'  # зүбөөр
 wrong = 'Неправильно'  # буруугаар
@@ -36,7 +36,6 @@ conn = psycopg2.connect(
     password=POSTGRES_PASSWORD,
     host=POSTGRES_HOST)
 conn.autocommit = True
-print('Подключено')
 cursor = conn.cursor()
 
 bot = TeleBot(TELEBOT_TOKEN)
@@ -50,34 +49,31 @@ commands = ('/start', '/help', '/stats')
 
 @bot.message_handler(commands=['start'])
 def start_bot(message):
-    first_message = f"""<b>{message.from_user.first_name}</b>, сайн байна! Би шамда туһалха гуйлта.\n\
-    \n<b>{message.from_user.first_name}</b>, привет! Прошу тебя помочь перевести предложения на бурятский язык.\
-    \nЭто поможет улучшить машинный перевод бурятского языка.\
+    first_message = f"""<b>{message.from_user.first_name}</b>, привет! 
+    \nЭтот бот предложит вам перевести предложения на бурятский язык, с бурятского языка, либо проверить имеющиеся переводы.\
+    \nПереведенные вами предложения улучшат качество переводчика бурятского языка https://translate-bur.ru/\
     \nПодробнее: /help \
-    \nЕсли потерялись: /start\
-    \nЧтобы начать, нажми одну из кнопок ниже:"""
+    \nЧтобы начать, нажмите одну из кнопок ниже:"""
     bot.send_message(message.chat.id, first_message, parse_mode='html', reply_markup=markup_button())
 
 
 @bot.message_handler(commands=['help'])
 def help_bot(message):
-    help_message = f"""Цель этого бота - собрать параллельный корпус бурятского языка. Т.е. большой набор предложений, \
-где каждому предложению на бурятском сопоставлен перевод на русский, или наоборот.\
-\nТакой корпус нужен для того, чтобы сделать машинный переводчик бурятского языка. \
-А также чтобы создатели больших языковых моделей (таких как ChatGPT) могли обучить модель разговаривать \
-на бурятском языке.
-\nВсё это поможет оцифровать и сохранить бурятский язык в электронном виде.
-\n\n<a href="https://techno.yandex.ru/machine-translation/on-small-languages">Как яндекс сделал переводчик для \
-якутского</a>
-\nЕсли есть вопросы или предложения, пишите @sarana_a
+    help_message = f"""Для хорошей работы нейросетевого переводчика нужен большой набор пар предложений-переводов (параллельный корпус).\
+\nТекущая версия корпуса была собрана программно, поэтому в нём есть ошибки. \
+Это могут быть:\n- опечатки, связанные с распознаванием текста\n- вольный перевод художественного произведения\
+\n- ошибки сопоставления предложений,\nи др.\n\
+\nВы можете помочь очистить корпус от ошибок и собрать новые переводы.\
+\nВ <a href="https://t.me/+bosUxcVi9lc0NGJi">этом чате</a> вы можете задать вопрос про бота или попросить помочь с переводом предложения.
     """
-    bot.send_message(message.chat.id, help_message, parse_mode='html', reply_markup=markup_button())
-    help_message_2 = f"""Бот отправит вам сообщение, либо на русском, либо на бурятском языке. \
-Затем вы можете выбрать, взяться за перевод или попросить другое предложение, если это оказалось сложным. \
-Если решили перевести, нажмите кнопку и введите перевод. \
-\nПредложения взяты из разных источников, в том числе Википедия, библия. Поэтому некоторые предложения могут \
-быть сложными для перевода.
+    bot.send_message(message.chat.id, help_message, parse_mode='html')
+    help_message_2 = f"""Бот отправит вам предложения для перевода. \
+Вы можете взяться за перевод, получить другое предложение (если оно оказалось сложным или просто вам не нравится), \
+либо исправить ошибки написания в исходном предложении и перевести. \
+\nПредложения взяты из разных источников, в том числе Википедия и библия. Поэтому некоторые предложения могут \
+быть сложными для перевода или проверки.
 """
+    bot.send_message(message.chat.id, help_message_2, parse_mode='html', reply_markup=markup_button())
 
 
 @bot.message_handler(commands=['stats'])
@@ -136,7 +132,8 @@ def send_sentence(message, lang):
                 reply_markup=markup_take_task())
             sentence_id = data[0][1]
             which_corpus = data[0][2]
-            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang)
+            task = data[0][3]
+            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang, task)
         elif lang == 'bua':
             bot.send_message(
                 message.chat.id,
@@ -147,7 +144,8 @@ def send_sentence(message, lang):
                 reply_markup=markup_take_task())
             sentence_id = data[0][1]
             which_corpus = data[0][2]
-            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang)
+            task = data[0][3]
+            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang, task)
         elif lang == 'both':
             bot.send_message(
                 message.chat.id,
@@ -165,13 +163,14 @@ def send_sentence(message, lang):
 
             which_corpus = data[0][2]
             sentence_id = data[0][3]
-            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang)
+            task = data[0][4]
+            bot.register_next_step_handler(send_sentence_msg, handle_answer_button, sentence_id, which_corpus, lang, task)
     else:
         bot.send_message(message.chat.id, "Предложения закончились, скоро добавим новые")
         bot.send_message(421890176, f"Предложения {lang} закончились")
 
 
-def handle_answer_button(message, sentence_id, which_corpus, lang):
+def handle_answer_button(message, sentence_id, which_corpus, lang, task):
     if message.text == another_sentence:
         send_sentence(message, lang=lang)
     elif message.text == take_task:
@@ -186,19 +185,19 @@ def handle_answer_button(message, sentence_id, which_corpus, lang):
         cursor.execute(update_translation(sentence='', sentence_id=sentence_id, user_id=message.chat.id, lang=lang,
                                           boolean=False))
         ans = bot.send_message(message.chat.id, 'Введите предложение на русском (при необходимости исправьте)')
-        bot.register_next_step_handler(ans, wrong_handler_ru, which_corpus, message.chat.id)
+        bot.register_next_step_handler(ans, wrong_handler_ru, which_corpus, message.chat.id, task)
 
     elif message.text == incorrect_sentence:
         cursor.execute(mark_sentence_incorrect(sentence_id, message.chat.id))
         if lang == 'ru':
             correct_pls = bot.send_message(message.chat.id, correct_pls_ru)
-            bot.register_next_step_handler(correct_pls, send_translate_pls, message.chat.id, which_corpus, lang)
+            bot.register_next_step_handler(correct_pls, send_translate_pls, message.chat.id, which_corpus, lang, task)
         elif lang == 'bua':
             correct_pls = bot.send_message(message.chat.id, correct_pls_bua)
-            bot.register_next_step_handler(correct_pls, send_translate_pls, message.chat.id, which_corpus, lang)
+            bot.register_next_step_handler(correct_pls, send_translate_pls, message.chat.id, which_corpus, lang, task)
         elif lang == 'both':
             correct_pls = bot.send_message(message.chat.id, correct_pls_ru)
-            bot.register_next_step_handler(correct_pls, wrong_handler_ru, which_corpus, message.chat.id)
+            bot.register_next_step_handler(correct_pls, wrong_handler_ru, which_corpus, message.chat.id, task)
 
     # Когда хочется не тыкая "беру" отправить перевод.
     elif message.text not in commands and lang in ('ru', 'bua'):
@@ -211,31 +210,32 @@ def log_translation(message, sentence_id, user_id, lang):
     cursor.execute(update_translation(sentence=sentence, sentence_id=sentence_id, user_id=user_id, lang=lang))
 
 
-def send_translate_pls(message, user_id, which_corpus, lang):
+def send_translate_pls(message, user_id, which_corpus, lang, task):
     sentence = message.text
     ans = bot.send_message(message.chat.id, translate_pls)
-    bot.register_next_step_handler(ans, log_corrected_sentences, sentence, message.chat.id, which_corpus, lang)
+    bot.register_next_step_handler(ans, log_corrected_sentences, sentence, user_id, which_corpus, lang, task)
 
 
-def log_corrected_sentences(message, sentence, user_id, which_corpus, lang):
+def log_corrected_sentences(message, sentence, user_id, which_corpus, lang, task):
     if lang == 'ru':
         cursor.execute(insert_two_sentences(sentence_ru=sentence, sentence_bua=message.text,
-                                            which_corpus=which_corpus + '_edited', user_id=user_id))
+                                            which_corpus=which_corpus + '_edited', user_id=user_id, task=task))
     elif lang == 'bua':
         cursor.execute(insert_two_sentences(sentence_ru=message.text, sentence_bua=sentence,
-                                            which_corpus=which_corpus + '_edited', user_id=user_id))
+                                            which_corpus=which_corpus + '_edited', user_id=user_id, task=task))
     bot.send_message(message.chat.id, thanks_msg, reply_markup=markup_button())
 
 
-def wrong_handler_ru(message, which_corpus, user_id):
+def wrong_handler_ru(message, which_corpus, user_id, task):
     sentence = message.text
     ans = bot.send_message(message.chat.id, 'Введите предложение на бурятском (при необходимости исправьте)')
-    bot.register_next_step_handler(ans, wrong_handler_bua, sentence, user_id, which_corpus)
+    bot.register_next_step_handler(ans, wrong_handler_bua, sentence, user_id, which_corpus, task)
 
 
-def wrong_handler_bua(message, sentence_ru, user_id, which_corpus):
+def wrong_handler_bua(message, sentence_ru, user_id, which_corpus, task):
     sentence_bua = message.text
-    cursor.execute(insert_two_sentences(sentence_ru, sentence_bua, which_corpus, user_id))
+    cursor.execute(insert_two_sentences(sentence_ru=sentence_ru, sentence_bua=sentence_bua,
+                                        which_corpus=which_corpus+'_edited', user_id=user_id, task=task))
     bot.send_message(message.chat.id, thanks_msg, reply_markup=markup_button())
 
 
